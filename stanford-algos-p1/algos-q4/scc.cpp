@@ -28,10 +28,6 @@ bool reverse_order(int i, int j){
 
 // Adds vertices to graph
 void graph_add(vector <vector<int> >& graph, int v1, int v2){
-	// Add empty vectors until v1 is included 
-	while (graph.size() <= v1)
-		graph.push_back(vector<int>());
-
 	// Add v2 to adjacency list of v1
 	graph.at(v1).push_back(v2);
 }
