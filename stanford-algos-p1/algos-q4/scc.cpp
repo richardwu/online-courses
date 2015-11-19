@@ -1,10 +1,30 @@
 #include <stack>
 #include <iostream>
-#include <fstream>
 #include <vector>
+#include <stdio.h>
 
 using namespace std;
 
+FILE *file;
+
+int n_vertices = 875714;
+int n_edges = 5105043;
+
+bool *traversed = NULL;
+int *f_times = NULL;
+
+// list of edges
+vector<vector<int> > edge_list; 
+// list of scc sizes
+vector<int> scc_sizes;
+// adjacency lists
+vector<vector<int> > G(n_vertices), Grev(n_vertices);
+
+
+// Reverse sorting function
+bool reverse_order(int i, int j){
+	return i > j;
+}
 
 // Adds vertices to graph
 void graph_add(vector <vector<int> >& graph, int v1, int v2){
@@ -17,23 +37,35 @@ void graph_add(vector <vector<int> >& graph, int v1, int v2){
 }
 
 
-void dfs_loop(vector <vector<int> >& G, vector <vector<int> >& Grev, bool *traversed, int *f_times, int n_vertices){
+void dfs_loop(vector <vector<int> >& graph){
 	int f_t = 0;
 	stack<int> dfs_stack;
+	int scc_count = 0;
 	// stack of vertices with highest f_time at the top
-	stack<int> f_time_v;
+	// stack<int> f_time_v;
 
-	// Order vertices in terms of finishing time using Grev
-	for (int i = Grev.size() - 1; i >= 0; i--){
+	// for (int i = 0; i < graph.size(); i++){
+	// 	for(int j = 0; j < graph.at(i).size(); j++)
+	// 		cout << graph.at(i).at(j) << ' ';
+	// 	cout << endl;
+	// }
+
+	// Order vertices in terms of finishing time using graph
+	for (int i = graph.size() - 1; i >= 0; i--){
 		if (traversed[i] == false){
 			dfs_stack.push(i);
 			traversed[i] = true;
+			scc_count = 0;
+
+			// cout << "new loop " << endl;
+
 			while(dfs_stack.size()){
 				int cur_v = dfs_stack.top();
+				// cout << "cur_v: " << cur_v << endl;
 				bool pop = true;
 
-				for(int j = 0; j < Grev.at(cur_v).size(); j++){
-					if (traversed[Grev.at(cur_v).at(j)] == false){
+				for(int j = 0; j < graph.at(cur_v).size(); j++){
+					if (traversed[graph.at(cur_v).at(j)] == false){
 						pop = false;
 						break;
 					}
@@ -42,141 +74,95 @@ void dfs_loop(vector <vector<int> >& G, vector <vector<int> >& Grev, bool *trave
 				if (pop){
 					dfs_stack.pop();
 					// increment finishing time & assign finishing time to cur_v
-					//f_t++;
-					//f_times[cur_v] = f_t;
-					f_time_v.push(cur_v);
+					f_t++;
+					f_times[cur_v] = f_t;
+					scc_count++;
+					// cout << "scc_count " << scc_count << endl;
+					// f_time_v.push(cur_v);
 				}
 				else{
 
 					// add adjacent vertices to stack
-					for(int k = 0; k < Grev.at(cur_v).size(); k++){
-						if (traversed[Grev.at(cur_v).at(k)] == false){
+					for(int k = 0; k < graph.at(cur_v).size(); k++){
+						if (traversed[graph.at(cur_v).at(k)] == false){
 							// set traversed true
-							traversed[Grev.at(cur_v).at(k)] = true;
-							dfs_stack.push(Grev.at(cur_v).at(k));
-						}
-					}
-				}
-
-			}
-		}
-	}
-
-	int count = 0;
-	vector<int> largest_sccs;
-
-	for (int i = 0; i < n_vertices; i++)
-		traversed[i] = false;
-
-	while(f_time_v.size()){
-
-		int cur_leader = f_time_v.top();
-		f_time_v.pop();
-
-		if(traversed[cur_leader] == false){
-			dfs_stack.push(cur_leader);
-			traversed[cur_leader] = true;
-
-			while(dfs_stack.size()){
-				int cur_v = dfs_stack.top();
-				bool pop = true;
-				for (int j = 0; j < G.at(cur_v).size(); j++){
-					if(traversed[G.at(cur_v).at(j)] == false){
-						pop = false;
-						break;
-					}
-				}
-
-				if(pop){
-					dfs_stack.pop();
-					count++;
-				}
-				else{
-					// add adjacent vertices to stack
-					for(int j = 0; j < G.at(cur_v).size(); j++){
-						if (traversed[G.at(cur_v).at(j)] == false){
-							// set traversed true
-							traversed[G.at(cur_v).at(j)] = true;
-							dfs_stack.push(G.at(cur_v).at(j));
+							// cout << graph.at(cur_v).at(k) << endl;
+							traversed[graph.at(cur_v).at(k)] = true;
+							dfs_stack.push(graph.at(cur_v).at(k));
+							break;
 						}
 					}
 				}
 			}
-
-			if (count > 0)
-				largest_sccs.push_back(count);
-
-			count = 0;
+			scc_sizes.push_back(scc_count);
 		}
 	}
-
-	sort(largest_sccs.begin(), largest_sccs.end());
-
-	int size = largest_sccs.size();
-
-	int end_i;
-	if (size >= 5)
-		end_i = size-5;
-	else
-		end_i = 0;
-
-	for(int i = largest_sccs.size() - 1; i >= end_i; i--)
-		cout << largest_sccs.at(i) << endl;
-
 
 }
 
 
 
 int main(){
-	ifstream file;
-	int v1, v2, index = 0, max = -1;
-	// adjacency lists 
-	vector <vector<int> > G, Grev;
-	bool *traversed = NULL;
-	int *f_times = NULL;
+	int v1, v2, index = 0;
+	int max = -1;
 
-	file.open("input.txt");
-
-	// Initialise adjacency lists
-	if (file.is_open()){
-		while (file >> v1){
-			file >> v2;
-			
-			// account for index = 0
-			v1--;
-			v2--;
-
-			graph_add(G, v1, v2);
-			graph_add(Grev, v2, v1);
-
-			if (v1 > max)
-				max = v1;
-			if (v2 > max)
-				max = v2;
-
-		}
-		file.close();
-	}
-
-	// Initialize traversed array based on highest vertex
-	int n_vertices = max + 1;
 	traversed = new bool[n_vertices];
 	f_times = new int[n_vertices];
+
+	file = fopen ("input.txt", "r");
+
+	// Initialise adjacency lists
+	for(int i = 0; i < n_edges; i++){
+		fscanf(file, "%d %d", &v1, &v2);
+			// account for index = 0
+		v1--;
+		v2--;
+
+		vector<int> temp;
+		temp.push_back(v1);
+		temp.push_back(v2);
+		edge_list.push_back(temp);	
+		graph_add(Grev, v2, v1);
+
+			// if (v1 > max)
+			// 	max = v1;
+			// if (v2 > max)
+			// 	max = v2;
+
+	}
+	fclose (file);
+
 	for ( int i = 0; i < n_vertices; i++)
 		traversed[i] = false;
 
-	dfs_loop(G, Grev, traversed, f_times, n_vertices);
+	// Find finishing times
+	dfs_loop(Grev);
 
-	//cout << G.size() << endl;
-	//cout << Grev.size() << endl;
+	for(int i = 0; i < edge_list.size(); i++){
+		int v_index = f_times[edge_list.at(i).at(0)] - 1;
+		graph_add(G, v_index, f_times[edge_list.at(i).at(1)] - 1);
+	}
 
-	// for (int i = 0; i < G.at(0).size(); i++)
-		// cout << G.at(0).at(i) << endl;
+	// Reset scc_size list
+	scc_sizes.clear();
+	// Reset traversed array
+	for ( int i = 0; i < n_vertices; i++)
+		traversed[i] = false;
 
-	// for (int i = 0; i < Grev.at(0).size(); i++)
-		// cout << Grev.at(0).at(i) << endl;
+	// Find SCCs
+	dfs_loop(G);
 
+	// Print out 5 largest SCC sizes
+	sort (scc_sizes.begin(), scc_sizes.end(), reverse_order);
+
+	int end_i;
+	if (scc_sizes.size() < 5)
+		end_i = scc_sizes.size();
+	else
+		end_i = 5;
+
+	for (int i = 0; i < end_i; i++)
+		cout << "scc_size " << i+1 << ": " << scc_sizes.at(i) << endl;
 
 	return 0;
 }
